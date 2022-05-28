@@ -678,6 +678,35 @@ def create_from_images(tfrecord_dir, image_dir, shuffle):
 
 #----------------------------------------------------------------------------
 
+def create_from_npy(tfrecord_dir, image_dir, image_size, shuffle):
+    print('Loading images from "%s"' % image_dir)
+    npy_filenames = sorted(glob.glob(os.path.join(image_dir, '*')))
+    if len(npy_filenames) == 0:
+        error('No input images found')
+    npy_images = np.stack( [np.load(df).astype('float32') for df in npy_filenames], axis=0)
+    npy_images *= (255.0/npy_images.max())
+    img = npy_images[0]
+    print(f"Dataset shape: {npy_images.shape}")
+    resolution = img.shape[0]
+    channels = img.shape[2] if img.ndim == 3 else 1
+    if img.shape[1] != resolution:
+        error('Input images must have the same width and height')
+    if resolution != 2 ** int(np.floor(np.log2(resolution))):
+        error('Input image resolution must be a power-of-two')
+    if channels not in [1, 3]:
+        error('Input images must be stored as RGB or grayscale')
+
+    with TFRecordExporter(tfrecord_dir, npy_images.shape[0]) as tfr:
+        order = tfr.choose_shuffled_order() if shuffle else np.arange(npy_images.shape[0])
+        for idx in range(order.size):
+            img = npy_images[idx]
+            if channels == 1:
+                img = img[np.newaxis, :, :] # HW => CHW
+            else:
+                img = img.transpose([2, 0, 1]) # HWC => CHW
+            tfr.add_image(img)
+#----------------------------------------------------------------------------
+
 def create_from_hdf5(tfrecord_dir, hdf5_filename, shuffle):
     print('Loading HDF5 archive from "%s"' % hdf5_filename)
     import h5py # conda install h5py
@@ -940,10 +969,11 @@ def execute_cmdline(argv):
     p.add_argument(     '--cx',             help='Center X coordinate (default: 89)', type=int, default=89)
     p.add_argument(     '--cy',             help='Center Y coordinate (default: 121)', type=int, default=121)
 
-    p = add_command(    'create_from_images', 'Create dataset from a directory full of images.',
-                                            'create_from_images datasets/mydataset myimagedir')
+    p = add_command(    'create_from_npy', 'Create dataset from a directory full of npy binary files.',
+                                            'create_from_npy datasets/mydataset myimagedir image_size')
     p.add_argument(     'tfrecord_dir',     help='New dataset directory to be created')
     p.add_argument(     'image_dir',        help='Directory containing the images')
+    p.add_argument(     'image_size',       help='Images size', type=int)
     p.add_argument(     '--shuffle',        help='Randomize image order (default: 1)', type=int, default=1)
 
     p = add_command(    'create_from_hdf5', 'Create dataset from legacy HDF5 archive.',
