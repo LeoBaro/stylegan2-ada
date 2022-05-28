@@ -140,6 +140,7 @@ def get_plugin(cuda_file, extra_nvcc_options=[]):
         compile_opts += ' --use_fast_math'
         for opt in extra_nvcc_options:
             compile_opts += ' ' + opt
+        compile_opts += " -Xcompiler -mno-float128 "            
         nvcc_cmd = _prepare_nvcc_cli(compile_opts)
 
         # Hash build configuration.
