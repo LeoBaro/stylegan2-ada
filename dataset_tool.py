@@ -369,6 +369,29 @@ def display(tfrecord_dir):
             break
     print('\nDisplayed %d images.' % idx)
 
+
+#----------------------------------------------------------------------------
+
+def png_preview(tfrecord_dir):
+    print('Loading dataset "%s"' % tfrecord_dir)
+    tflib.init_tf()
+    dset = dataset.TFRecordDataset(tfrecord_dir, max_label_size='full', repeat=False, shuffle=False)
+    tflib.init_uninitialized_vars()
+    import cv2  # pip install opencv-python
+
+    idx = 0
+    while True:
+        images, labels = dset.get_minibatch_np(1)
+        if images is None:
+            break
+        img = images[0].transpose(1, 2, 0)[:, :, ::-1]
+        print(img.shape)
+        print(img[:10,:10,0])
+        cv2.imwrite(f"image-{idx}.png", img)
+        input("Ctrl + C to quit")
+        idx += 1
+    print('\nDisplayed %d images.' % idx)
+
 #----------------------------------------------------------------------------
 
 def extract(tfrecord_dir, output_dir):
@@ -683,10 +706,17 @@ def create_from_npy(tfrecord_dir, image_dir, image_size, shuffle):
     npy_filenames = sorted(glob.glob(os.path.join(image_dir, '*')))
     if len(npy_filenames) == 0:
         error('No input images found')
-    npy_images = np.stack( [np.load(df).astype('float32') for df in npy_filenames], axis=0)
+
+    npy_images = np.squeeze(
+                    np.stack(
+                        [np.load(df).astype('float32') for df in npy_filenames],
+                        axis=0),
+                    axis=-1) # (N,H,W)
     npy_images *= (255.0/npy_images.max())
     img = npy_images[0]
+
     print(f"Dataset shape: {npy_images.shape}")
+    input("..")
     resolution = img.shape[0]
     channels = img.shape[2] if img.ndim == 3 else 1
     if img.shape[1] != resolution:
@@ -905,6 +935,10 @@ def execute_cmdline(argv):
     p.add_argument(     'tfrecord_dir',     help='Directory containing dataset')
 
     p = add_command(    'display',          'Display images in dataset.',
+                                            'display datasets/mnist')
+    p.add_argument(     'tfrecord_dir',     help='Directory containing dataset')
+
+    p = add_command(    'png_preview',      'Display images in dataset. It writes .png files.',
                                             'display datasets/mnist')
     p.add_argument(     'tfrecord_dir',     help='Directory containing dataset')
 
