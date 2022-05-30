@@ -377,19 +377,22 @@ def png_preview(tfrecord_dir):
     tflib.init_tf()
     dset = dataset.TFRecordDataset(tfrecord_dir, max_label_size='full', repeat=False, shuffle=False)
     tflib.init_uninitialized_vars()
-    import cv2  # pip install opencv-python
-
+    # import cv2  # pip install opencv-python
+    import matplotlib.pyplot as plt
     idx = 0
     while True:
         images, labels = dset.get_minibatch_np(1)
         if images is None:
             break
-        img = images[0].transpose(1, 2, 0)[:, :, ::-1]
-        print(img.shape)
-        print(img[:10,:10,0])
-        cv2.imwrite(f"image-{idx}.png", img)
+        fig, ax = plt.subplots(2, 2, figsize=(10,10))
+        ax = ax.ravel()
+        for i in range(idx, idx+4):
+            img = images[0].transpose(1, 2, 0)[:, :, ::-1]
+            print(img.shape)
+            ax[i] = imshow(img)
+        fig.savfig(f"image-{idx}.png", dpi=300)
         input("Ctrl + C to quit")
-        idx += 1
+        idx += 4
     print('\nDisplayed %d images.' % idx)
 
 #----------------------------------------------------------------------------
@@ -701,6 +704,11 @@ def create_from_images(tfrecord_dir, image_dir, shuffle):
 
 #----------------------------------------------------------------------------
 
+def linear_stretch(img, a, b):
+    c = img.min()
+    d = img.max()
+    return (img-c) * ((b-a)/(d-c)) + a
+
 def create_from_npy(tfrecord_dir, image_dir, image_size, shuffle):
     print('Loading images from "%s"' % image_dir)
     npy_filenames = sorted(glob.glob(os.path.join(image_dir, '*')))
@@ -712,11 +720,26 @@ def create_from_npy(tfrecord_dir, image_dir, image_size, shuffle):
                         [np.load(df).astype('float32') for df in npy_filenames],
                         axis=0),
                     axis=-1) # (N,H,W)
-    npy_images *= (255.0/npy_images.max())
-    img = npy_images[0]
+
+    for i in range(npy_images.shape[0]):
+        npy_images[i,:,:] = linear_stretch(npy_images[i,:,:], 0, 255)
+
+    npy_images = np.rint(npy_images).astype('int')
+
+    for i in range(3):
+        print(npy_images[i].min(), npy_images[i].max())
+
+
+    for i in range(npy_images.shape[0]):
+        try:
+            assert npy_images[i].min() == 0
+            assert npy_images[i].max() == 255
+        except Exception as e:
+            print(npy_images[i].min(), npy_images[i].max())
+
 
     print(f"Dataset shape: {npy_images.shape}")
-    input("..")
+    img = npy_images[0]
     resolution = img.shape[0]
     channels = img.shape[2] if img.ndim == 3 else 1
     if img.shape[1] != resolution:
