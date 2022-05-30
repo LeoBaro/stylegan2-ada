@@ -2,12 +2,13 @@ name: stylegan2ada
 
 channels:
   - conda-forge
+  - defaults
 
 dependencies:
   - python=3.6
   - tensorflow-gpu=1.14
   - Pillow=6.2.1
-  - requests==2.22.0
-  - imageio==2.9.0
-  - imageio-ffmpeg==0.4.2
-  - tqdm==4.49.0
+  - requests=2.22.0
+  - imageio=2.9.0
+  - imageio-ffmpeg=0.4.2
+  - tqdm=4.49.0
