@@ -11,6 +11,7 @@
 import os
 import pickle
 import time
+#import wandb
 import PIL.Image
 import numpy as np
 import tensorflow as tf
@@ -74,6 +75,7 @@ def save_image_grid(images, filename, drange, grid_size):
     images = images.reshape(gh, gw, C, H, W)
     images = images.transpose(0, 3, 1, 4, 2)
     images = images.reshape(gh * H, gw * W, C)
+    images = np.squeeze(images, axis=2)
     PIL.Image.fromarray(images, {3: 'RGB', 1: 'L'}[C]).save(filename)
 
 #----------------------------------------------------------------------------
