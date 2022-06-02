@@ -715,31 +715,10 @@ def create_from_npy(tfrecord_dir, image_dir, image_size, shuffle):
     if len(npy_filenames) == 0:
         error('No input images found')
 
-    npy_images = np.squeeze(
-                    np.stack(
-                        [np.load(df).astype('float32') for df in npy_filenames],
-                        axis=0),
-                    axis=-1) # (N,H,W)
+    img = np.squeeze(np.load(npy_filenames[0]).astype('float32'), axis=-1)
 
-    for i in range(npy_images.shape[0]):
-        npy_images[i,:,:] = linear_stretch(npy_images[i,:,:], 0, 255)
+    print(f"Img shape: {img.shape}")
 
-    npy_images = np.rint(npy_images).astype('int')
-
-    for i in range(3):
-        print(npy_images[i].min(), npy_images[i].max())
-
-
-    for i in range(npy_images.shape[0]):
-        try:
-            assert npy_images[i].min() == 0
-            assert npy_images[i].max() == 255
-        except Exception as e:
-            print(npy_images[i].min(), npy_images[i].max())
-
-
-    print(f"Dataset shape: {npy_images.shape}")
-    img = npy_images[0]
     resolution = img.shape[0]
     channels = img.shape[2] if img.ndim == 3 else 1
     if img.shape[1] != resolution:
@@ -749,10 +728,17 @@ def create_from_npy(tfrecord_dir, image_dir, image_size, shuffle):
     if channels not in [1, 3]:
         error('Input images must be stored as RGB or grayscale')
 
-    with TFRecordExporter(tfrecord_dir, npy_images.shape[0]) as tfr:
-        order = tfr.choose_shuffled_order() if shuffle else np.arange(npy_images.shape[0])
+    with TFRecordExporter(tfrecord_dir, len(npy_filenames)) as tfr:
+        order = tfr.choose_shuffled_order() if shuffle else np.arange(len(npy_filenames))
+
         for idx in range(order.size):
-            img = npy_images[idx]
+
+            img = np.rint(
+                    linear_stretch(
+                            np.squeeze(
+                                np.load(npy_filenames[idx]).astype('float32'), axis=-1), 0, 255)) \
+                                    .astype('int')
+
             if channels == 1:
                 img = img[np.newaxis, :, :] # HW => CHW
             else:
